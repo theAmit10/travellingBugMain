@@ -1,9 +1,12 @@
 package com.pinkcar.user.activities;
 
+import static java.lang.Thread.sleep;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -19,10 +22,13 @@ import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -51,10 +57,14 @@ import org.json.JSONObject;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import es.dmoral.toasty.Toasty;
 
@@ -98,27 +108,64 @@ public class SplashScreen extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (SharedHelper.getKey(this, "selectedlanguage").contains("ar")) {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        } else {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        }
         setContentView(R.layout.activity_splash);
-        printKeyHash(this);
-        GetToken();
-        firebaseAnalytics = FirebaseAnalytics.getInstance(SplashScreen.this);
-        //Crashlytics.getInstance();
 
-        helper = new ConnectionHelper(this);
-        isInternet = helper.isConnectingToInternet();
-        String base64Key = Base64.encodeToString(keys.getBytes(), Base64.NO_WRAP);
-        handleCheckStatus = new Handler();
-        //check status every 3 sec
-        SharedHelper.putKey(SplashScreen.this, "base64Key", base64Key);
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
+        ExecutorService service = Executors.newSingleThreadExecutor();
+        service.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    sleep(4000);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }finally {
 
-        showPermissionDialog();
+                    // for intro screen
+                    SharedPreferences sharedPreferences= getSharedPreferences("PREFERENCES",MODE_PRIVATE);
+                    String firstTime = sharedPreferences.getString("FirstTimeInstall","");
+                    if(firstTime.equals("Yes")) {
+                        startActivity(new Intent(SplashScreen.this, IntroScreen.class));
+
+                    }
+                    else {
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putString("FirstTimeInstall","Yes");
+                        editor.apply();
+
+                        if (SharedHelper.getKey(SplashScreen.this, "selectedlanguage").contains("ar")) {
+                            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+                        } else {
+                            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+                        }
+
+                        printKeyHash(SplashScreen.this);
+                        GetToken();
+                        firebaseAnalytics = FirebaseAnalytics.getInstance(SplashScreen.this);
+                        //Crashlytics.getInstance();
+
+                        helper = new ConnectionHelper(SplashScreen.this);
+                        isInternet = helper.isConnectingToInternet();
+                        String base64Key = Base64.encodeToString(keys.getBytes(), Base64.NO_WRAP);
+                        handleCheckStatus = new Handler();
+                        //check status every 3 sec
+                        SharedHelper.putKey(SplashScreen.this, "base64Key", base64Key);
+                        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+                        StrictMode.setThreadPolicy(policy);
+
+                        showPermissionDialog();
+
+
+                    }
+
+                }
+            }
+        });
+
+
+
+
+
+
     }
 
     public void getProfile() {
